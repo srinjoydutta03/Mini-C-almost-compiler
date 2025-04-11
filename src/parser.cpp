@@ -810,6 +810,73 @@ bool Parser::parse() {
                 current_identifier = "";
             }
             
+            // Special case for EXPRESSION - ensure we're not in declaration mode
+            if (nonterm == NonTerminal::EXPRESSION || 
+                nonterm == NonTerminal::TERM || 
+                nonterm == NonTerminal::EXPRESSION_TAIL ||
+                nonterm == NonTerminal::TERM_TAIL) {
+                // Save the current declaration state to restore it after expression processing
+                bool was_processing_declaration = processing_declaration;
+                processing_declaration = false;
+                
+                // Process the expression normally via the parse table
+                std::string input_symbol = current_token->lexeme;
+                
+                // Convert token type to string placeholder for lookup if needed
+                if (current_token->type == TokenType::Identifier ||
+                    current_token->type == TokenType::IntegerLiteral ||
+                    current_token->type == TokenType::FloatLiteral) {
+                    std::string tokenTypeStr = "$" + std::to_string(static_cast<int>(current_token->type));
+                    input_symbol = tokenTypeStr;
+                }
+                
+                // Look up production in parse table
+                auto it = parse_table[nonterm].find(input_symbol);
+                
+                if (it != parse_table[nonterm].end() && it->second.production_index != NO_PRODUCTION) {
+                    // Valid production, push RHS onto stack in reverse order
+                    const Production* prod = it->second.production;
+                    
+                    if (verbose) {
+                        std::cout << "Using production: " << nonTerminalToString(prod->lhs) << " →";
+                        for (const auto& symbol : prod->rhs) {
+                            if (std::holds_alternative<std::string>(symbol)) {
+                                std::cout << " " << std::get<std::string>(symbol);
+                            } else if (std::holds_alternative<TokenType>(symbol)) {
+                                TokenType tokenType = std::get<TokenType>(symbol);
+                                std::cout << " [TokenType:" << static_cast<int>(tokenType) << "]";
+                            } else {
+                                std::cout << " " << nonTerminalToString(std::get<NonTerminal>(symbol));
+                            }
+                        }
+                        std::cout << std::endl;
+                    }
+                    
+                    // Skip epsilon - it doesn't need to be pushed onto the stack
+                    if (!(prod->rhs.size() == 1 && 
+                        std::holds_alternative<std::string>(prod->rhs[0]) && 
+                        std::get<std::string>(prod->rhs[0]) == EPSILON)) {
+                        
+                        // Push symbols in reverse order
+                        for (auto it = prod->rhs.rbegin(); it != prod->rhs.rend(); ++it) {
+                            parse_stack.push_back(*it);
+                        }
+                    }
+                    
+                    // Restore previous declaration state when we finish with the right-hand side of an assignment
+                    processing_declaration = was_processing_declaration;
+                    continue;
+                } else {
+                    // Error: No valid production for the current input
+                    reportParseError(nonterm);
+                    
+                    // Skip current token as a basic error recovery strategy
+                    tokens.advance();
+                    current_token = &tokens.peek();
+                    return false;
+                }
+            }
+            
             // Special case for STATEMENT_LIST to avoid infinite loops with epsilon productions
             if (nonterm == NonTerminal::STATEMENT_LIST) {
                 // If we see '}', we use the epsilon production
@@ -935,6 +1002,39 @@ bool Parser::parse() {
                         std::cout << "No matching statement type, using epsilon for STATEMENT" << std::endl;
                     }
                     continue;
+                }
+            }
+            
+            // Special case for FACTOR - make sure we handle identifiers properly
+            if (nonterm == NonTerminal::FACTOR) {
+                // If we see an identifier when processing a factor, always treat it as a reference, not a declaration
+                if (current_token->type == TokenType::Identifier) {
+                    bool was_processing_declaration = processing_declaration;
+                    processing_declaration = false;  // Temporarily disable declaration processing
+                    
+                    // Process the identifier token - check if it exists in the symbol table
+                    SymbolInfo* info = symbol_table.lookup(current_token->lexeme);
+                    if (!info) {
+                        error_reporter.error(current_token->loc, "Use of undeclared variable '%s'", 
+                                          current_token->lexeme.c_str());
+                    }
+                    
+                    // Push the FACTOR production onto the stack
+                    auto it = parse_table[nonterm].find("$1");  // $1 is the Identifier token type
+                    if (it != parse_table[nonterm].end() && it->second.production_index != NO_PRODUCTION) {
+                        const Production* prod = it->second.production;
+                        
+                        // Push symbols in reverse order and skip capturing the identifier for declaration
+                        parse_stack.push_back(NonTerminal::FACTOR_TAIL);
+                        
+                        // Advance past the identifier token
+                        tokens.advance();
+                        current_token = &tokens.peek();
+                        
+                        // Restore previous declaration state
+                        processing_declaration = was_processing_declaration;
+                        continue;
+                    }
                 }
             }
             

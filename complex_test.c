@@ -6,7 +6,7 @@ int main() {
     float avg = 0.0;
 
     int x = 0;
-    float y = x *+ 3;
+    float y = x * 3;
     
     /* Loop with nested conditional */
     while (i < max) {
