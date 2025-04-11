@@ -1052,39 +1052,91 @@ void Parser::printParseTable() const {
         }
     }
     
-    // Print table header with terminals
-    std::cout << "\nLL(1) PARSE TABLE:\n";
-    std::cout << "------------------------------------------------------\n";
-    std::cout << "NON-TERMINAL | ";
+    // Calculate column widths
+    std::map<std::string, size_t> column_widths;
+    size_t nt_column_width = 15; // Minimum width for non-terminal column
+    
+    // Find the max width needed for each terminal column
     for (const auto& terminal : all_terminals) {
-        std::cout << terminal << " | ";
+        column_widths[terminal] = std::max(terminal.length() + 2, size_t(5)); // Min width of 5
     }
-    std::cout << "\n------------------------------------------------------\n";
+    
+    // Find the max width needed for the non-terminal column
+    for (int i = 0; i <= static_cast<int>(NonTerminal::FACTOR_TAIL); i++) {
+        NonTerminal nt = static_cast<NonTerminal>(i);
+        nt_column_width = std::max(nt_column_width, nonTerminalToString(nt).length() + 2);
+    }
+    
+    // Calculate total table width
+    size_t total_width = nt_column_width + 1; // +1 for border
+    for (const auto& [terminal, width] : column_widths) {
+        total_width += width + 1; // +1 for border
+    }
+    
+    // Print table header
+    std::cout << "\n+";
+    for (size_t i = 0; i < nt_column_width; i++) std::cout << "-";
+    std::cout << "+";
+    for (const auto& terminal : all_terminals) {
+        for (size_t i = 0; i < column_widths[terminal]; i++) std::cout << "-";
+        std::cout << "+";
+    }
+    std::cout << "\n";
+    
+    // Print header row
+    std::cout << "|" << std::setw(nt_column_width) << std::left << " NON-TERMINAL" << "|";
+    for (const auto& terminal : all_terminals) {
+        std::cout << std::setw(column_widths[terminal]) << std::left << " " + terminal << "|";
+    }
+    std::cout << "\n";
+    
+    // Print separator row
+    std::cout << "+";
+    for (size_t i = 0; i < nt_column_width; i++) std::cout << "-";
+    std::cout << "+";
+    for (const auto& terminal : all_terminals) {
+        for (size_t i = 0; i < column_widths[terminal]; i++) std::cout << "-";
+        std::cout << "+";
+    }
+    std::cout << "\n";
     
     // Print each row (non-terminal)
     for (int i = 0; i <= static_cast<int>(NonTerminal::FACTOR_TAIL); i++) {
         NonTerminal nt = static_cast<NonTerminal>(i);
-        std::cout << std::left << std::setw(13) << nonTerminalToString(nt) << "| ";
+        std::cout << "|" << std::setw(nt_column_width) << std::left << " " + nonTerminalToString(nt) << "|";
         
         // For each terminal, print the corresponding production
         for (const auto& terminal : all_terminals) {
             auto it = parse_table.at(nt).find(terminal);
             if (it != parse_table.at(nt).end() && it->second.production_index != NO_PRODUCTION) {
-                // Print a short representation of the production
-                std::cout << it->second.production_index << " | ";
+                // Print the production index with padding
+                std::cout << std::setw(column_widths[terminal]) << std::left << " " + std::to_string(it->second.production_index) << "|";
             } else {
-                std::cout << "  | "; // Empty cell
+                // Empty cell
+                std::cout << std::setw(column_widths[terminal]) << std::left << " " << "|";
             }
         }
         std::cout << "\n";
     }
-    std::cout << "------------------------------------------------------\n";
     
-    // Print production legends
-    std::cout << "\nProduction Legend:\n";
+    // Print table footer
+    std::cout << "+";
+    for (size_t i = 0; i < nt_column_width; i++) std::cout << "-";
+    std::cout << "+";
+    for (const auto& terminal : all_terminals) {
+        for (size_t i = 0; i < column_widths[terminal]; i++) std::cout << "-";
+        std::cout << "+";
+    }
+    std::cout << "\n";
+    
+    // Print production legends in a more readable format
+    std::cout << "\n+- Production Legend ";
+    for (size_t i = 0; i < total_width - 20; i++) std::cout << "-";
+    std::cout << "+\n";
+    
     for (size_t i = 0; i < first_follow.grammar.size(); i++) {
         const Production& prod = first_follow.grammar[i];
-        std::cout << i << ": " << nonTerminalToString(prod.lhs) << " → ";
+        std::cout << "| " << std::setw(3) << std::left << i << ": " << nonTerminalToString(prod.lhs) << " → ";
         
         for (const auto& symbol : prod.rhs) {
             if (std::holds_alternative<std::string>(symbol)) {
@@ -1108,8 +1160,41 @@ void Parser::printParseTable() const {
                 std::cout << nonTerminalToString(std::get<NonTerminal>(symbol)) << " ";
             }
         }
-        std::cout << std::endl;
+        
+        // Pad the end of the line to align with the table width
+        std::string line = std::to_string(i) + ": " + nonTerminalToString(prod.lhs) + " → ";
+        for (const auto& symbol : prod.rhs) {
+            if (std::holds_alternative<std::string>(symbol)) {
+                line += std::get<std::string>(symbol) + " ";
+            } else if (std::holds_alternative<TokenType>(symbol)) {
+                TokenType tokenType = std::get<TokenType>(symbol);
+                switch(tokenType) {
+                    case TokenType::Identifier:
+                        line += "IDENTIFIER ";
+                        break;
+                    case TokenType::IntegerLiteral:
+                        line += "INTEGER_LITERAL ";
+                        break;
+                    case TokenType::FloatLiteral:
+                        line += "FLOAT_LITERAL ";
+                        break;
+                    default:
+                        line += "TOKEN_TYPE(" + std::to_string(static_cast<int>(tokenType)) + ") ";
+                }
+            } else {
+                line += nonTerminalToString(std::get<NonTerminal>(symbol)) + " ";
+            }
+        }
+        
+        int padding = total_width - line.length() - 3; // -3 for "| " at start and "|" at end
+        if (padding < 0) padding = 0;
+        
+        std::cout << std::string(padding, ' ') << "|\n";
     }
+    
+    std::cout << "+";
+    for (size_t i = 0; i < total_width - 2; i++) std::cout << "-";
+    std::cout << "+\n";
 }
 
 void Parser::setVerbose(bool enable) {

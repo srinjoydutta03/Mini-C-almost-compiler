@@ -5,18 +5,8 @@ int main() {
     float sum = 0.0;
     float avg = 0.0;
 
-    /* Syntax errors for testing parser */
-    int missing_semicolon = 10;
-    
-    /* Invalid expression */
-    float invalid = 5 * 3;
-
-    
-    /* Missing operand */
-    int incomplete = i + 3;
-    
-    /* Invalid variable declaration */
-    int invalid = 5;
+    int x = 0;
+    float y = x *+ 3;
     
     /* Loop with nested conditional */
     while (i < max) {
@@ -24,6 +14,7 @@ int main() {
         
         /* Nested loop */
         while (j < i) {
+            int j = 1;
             sum = sum + j;
             j++;
         }

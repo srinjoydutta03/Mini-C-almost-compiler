@@ -31,7 +31,6 @@ void testBasicFunctionality() {
     assert(info1->name == "x");
     assert(info1->type == SymbolType::INT);
     assert(info1->scope_level == 0);
-    assert(info1->is_initialized == false);
     
     SymbolInfo* info2 = table.lookup("y");
     assert(info2 != nullptr);
@@ -147,9 +146,9 @@ void testNestedScopes() {
     std::cout << "Nested scopes test passed!" << std::endl;
 }
 
-// Test symbol initialization and value handling
-void testInitialization() {
-    std::cout << "Testing symbol initialization..." << std::endl;
+// Test symbol value handling
+void testValueSetting() {
+    std::cout << "Testing symbol value setting..." << std::endl;
     
     SymbolTable table;
     
@@ -157,10 +156,9 @@ void testInitialization() {
     table.insert("int_var", SymbolType::INT);
     table.insert("float_var", SymbolType::FLOAT);
     
-    // Check initial state
+    // Get initial references
     SymbolInfo* int_info = table.lookup("int_var");
     assert(int_info != nullptr);
-    assert(int_info->is_initialized == false);
     
     // Set values
     bool result1 = table.setValue("int_var", 42);
@@ -169,13 +167,11 @@ void testInitialization() {
     bool result2 = table.setValue("float_var", 3.14f);
     assert(result2);
     
-    // Check updated state
-    assert(int_info->is_initialized == true);
+    // Check updated values
     assert(int_info->value.int_value == 42);
     
     SymbolInfo* float_info = table.lookup("float_var");
     assert(float_info != nullptr);
-    assert(float_info->is_initialized == true);
     assert(float_info->value.float_value == 3.14f);
     
     // Try setting wrong type
@@ -185,7 +181,7 @@ void testInitialization() {
     bool result4 = table.setValue("float_var", 10);
     assert(!result4);
     
-    std::cout << "Initialization test passed!" << std::endl;
+    std::cout << "Value setting test passed!" << std::endl;
 }
 
 // Test duplicate symbol detection
@@ -248,53 +244,55 @@ void testGetAllSymbols() {
 
 // Test symbol table with a while loop example
 void testWhileLoopExample() {
-    std::cout << "Testing symbol table with a while loop example..." << std::endl;
+    std::cout << "Testing while loop example..." << std::endl;
     
     SymbolTable table;
     
-    // Global scope
+    // Global scope: int i, max; float sum;
     table.insert("i", SymbolType::INT);
+    table.insert("max", SymbolType::INT);
+    table.insert("sum", SymbolType::FLOAT);
+    
+    // Set values
     table.setValue("i", 0);
+    table.setValue("max", 10);
+    table.setValue("sum", 0.0f);
     
-    table.insert("sum", SymbolType::INT);
-    table.setValue("sum", 0);
-    
-    // Enter while loop scope
+    // Entering while loop body
     table.enterScope();
     
-    // Variables inside while loop
-    table.insert("temp", SymbolType::INT);
+    // Local: int j;
+    table.insert("j", SymbolType::INT);
+    table.setValue("j", 0);
     
-    // Make sure we can see all variables
+    // Check that all variables are visible
     assert(table.lookup("i") != nullptr);
+    assert(table.lookup("max") != nullptr);
     assert(table.lookup("sum") != nullptr);
-    assert(table.lookup("temp") != nullptr);
+    assert(table.lookup("j") != nullptr);
     
-    // Exit while loop scope
+    // Exit while loop
     table.exitScope();
     
-    // Should not see temp anymore
-    assert(table.lookup("i") != nullptr);
-    assert(table.lookup("sum") != nullptr);
-    assert(table.lookup("temp") == nullptr);
+    // j should no longer be visible
+    assert(table.lookup("j") == nullptr);
     
     std::cout << "While loop example test passed!" << std::endl;
 }
 
-// Main test runner function (replaces main to avoid duplicate symbols)
+// Run all symbol table tests
 int run_symbol_table_tests() {
-    std::cout << "==== RUNNING SYMBOL TABLE TESTS ====" << std::endl;
+    std::cout << "\n=== Running Symbol Table Tests ===\n" << std::endl;
     
-    // Run all test functions
     testBasicFunctionality();
     testScoping();
     testNestedScopes();
-    testInitialization();
+    testValueSetting();
     testDuplicateSymbols();
     testGetAllSymbols();
     testWhileLoopExample();
     
-    std::cout << "All symbol table tests passed!" << std::endl;
+    std::cout << "\n=== All Symbol Table Tests Passed! ===\n" << std::endl;
     
     return 0;
 }

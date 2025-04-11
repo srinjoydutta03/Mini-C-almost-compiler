@@ -19,7 +19,6 @@ struct SymbolInfo {
     std::string name;
     SymbolType type;
     int scope_level;
-    bool is_initialized;
     
     // Value, if known at compile time
     union {
@@ -27,10 +26,14 @@ struct SymbolInfo {
         float float_value;
     } value;
     
-    SymbolInfo() : name(""), type(SymbolType::UNKNOWN), scope_level(0), is_initialized(false) {}
+    SymbolInfo() : name(""), type(SymbolType::UNKNOWN), scope_level(0) {
+        value.int_value = 0;
+    }
     
     SymbolInfo(const std::string& name, SymbolType type, int scope) 
-        : name(name), type(type), scope_level(scope), is_initialized(false) {}
+        : name(name), type(type), scope_level(scope) {
+        value.int_value = 0;
+    }
 };
 
 // Class that manages symbols and their scopes
@@ -53,9 +56,6 @@ public:
     
     // Add a new symbol to the current scope
     bool insert(const std::string& name, SymbolType type);
-    
-    // Update a symbol's initialization status
-    bool setInitialized(const std::string& name);
     
     // Update a symbol's value (if constant)
     bool setValue(const std::string& name, int value);

@@ -33,18 +33,6 @@ bool SymbolTable::insert(const std::string& name, SymbolType type) {
     return true;
 }
 
-bool SymbolTable::setInitialized(const std::string& name) {
-    // Find the symbol
-    SymbolInfo* info = lookup(name);
-    if (!info) {
-        return false;
-    }
-    
-    // Update initialization status
-    info->is_initialized = true;
-    return true;
-}
-
 bool SymbolTable::setValue(const std::string& name, int value) {
     // Find the symbol
     SymbolInfo* info = lookup(name);
@@ -54,7 +42,6 @@ bool SymbolTable::setValue(const std::string& name, int value) {
     
     // Update value
     info->value.int_value = value;
-    info->is_initialized = true;
     return true;
 }
 
@@ -67,7 +54,6 @@ bool SymbolTable::setValue(const std::string& name, float value) {
     
     // Update value
     info->value.float_value = value;
-    info->is_initialized = true;
     return true;
 }
 
@@ -114,18 +100,7 @@ void SymbolTable::printTable() const {
                     std::cout << "unknown";
             }
             
-            std::cout << ") - ";
-            std::cout << (info.is_initialized ? "initialized" : "uninitialized");
-            
-            if (info.is_initialized) {
-                if (info.type == SymbolType::INT) {
-                    std::cout << " = " << info.value.int_value;
-                } else if (info.type == SymbolType::FLOAT) {
-                    std::cout << " = " << info.value.float_value;
-                }
-            }
-            
-            std::cout << std::endl;
+            std::cout << ")" << std::endl;
         }
         
         std::cout << std::endl;
